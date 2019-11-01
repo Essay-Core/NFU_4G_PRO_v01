@@ -283,6 +283,7 @@ void CNFU_4G_PRODlg::OnBnClickedStart()
 		showCurLineChar(m_listbox, m_showStr);
 		return;
 	}
+
 	
 	memset((char*)&stZynqHead, 0, sizeof(stZynqHead));
 	stZynqHead.type = DT_START;
@@ -326,8 +327,8 @@ void CNFU_4G_PRODlg::OnBnClickedStart()
 	//开始接收数据
 	m_flags_recv_data = 2;
 	
-	//sprintf_s(m_showStr, "start recv data...");
-	//showCurLineChar(m_listbox, m_showStr);
+	sprintf_s(m_showStr, "start recv data...");
+	showCurLineChar(m_listbox, m_showStr);
 
 }
 

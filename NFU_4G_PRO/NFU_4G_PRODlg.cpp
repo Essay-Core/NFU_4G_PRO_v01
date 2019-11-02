@@ -283,7 +283,6 @@ void CNFU_4G_PRODlg::OnBnClickedStart()
 		showCurLineChar(m_listbox, m_showStr);
 		return;
 	}
-
 	
 	memset((char*)&stZynqHead, 0, sizeof(stZynqHead));
 	stZynqHead.type = DT_START;
@@ -366,9 +365,34 @@ void CNFU_4G_PRODlg::OnBnClickedStatus()
 		return;
 	}
 
-	TRACE("size:%d, type:%d, data:%s", stHeader->size, stHeader->type, stHeader->data);
-	sprintf_s(m_showStr, "size:%d, type:%d, data:%s", stHeader->size, stHeader->type, stHeader->data);
-	showCurLineChar(m_listbox, m_showStr);
+	int statusRet = 0;
+	for (int i = 0; i < 130; i++)
+	{
+		statusRet = ExtraData(0, 1, (uint8*)stHeader->data);
+		if (statusRet == 1)
+		{
+			sprintf_s(m_showStr, "channel:%d, status:%d", i, statusRet);
+			showCurLineChar(m_listbox, m_showStr);
+		}
+	}
+
+#ifdef TTT
+	//uint8 testStr[32] = { 0x18, 0x11, 0x34 };
+	char testStr[32] = { 0xff, 0xff, 0xef };
+
+	int statusRet = 0;
+	for (int i = 0; i < 130; i++)
+	{
+		statusRet = ExtraData(i, 1, (uint8*)testStr);
+		if (statusRet == 1)
+		{
+			sprintf_s(m_showStr, "channel:%d, status:%d", i, statusRet);
+			showCurLineChar(m_listbox, m_showStr);
+		}
+	}
+
+#endif
+
 	return;
 }
 
@@ -475,8 +499,94 @@ void CNFU_4G_PRODlg::OnBnClickedClean()
 	// TODO:  在此添加控件通知处理程序代码
 	//清空列表
 	m_listbox->ResetContent();
+	
 }
 
+
+void CNFU_4G_PRODlg::OnBnClickedStop()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	sprintf_s(m_showStr, "退出程序");
+	showCurLineChar(m_listbox, m_showStr);
+
+	//退出线程，结束，或停止
+	m_flags_IF_exit = -1;
+
+	//停止接收数据 != 2
+	m_flags_recv_data = 0;
+
+	//退出
+	CDialog::OnCancel();
+}
+
+
+void CNFU_4G_PRODlg::OnBnClickedDisconnect()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	if (m_socket)
+	{
+		closesocket(m_socket);
+		m_socket = NULL;
+		sprintf_s(m_showStr, "DisConnect success!");
+		showCurLineChar(m_listbox, m_showStr);
+	}
+	//停止接收数据 != 2
+	m_flags_recv_data = 0;
+
+	//退出线程，结束，或停止
+	m_flags_IF_exit = -1;
+
+	if (m_th_write.joinable())
+	{
+		m_th_write.join();
+	}
+
+	if (m_th_data.joinable())
+	{
+		m_th_data.join();
+	}
+
+}
+
+
+void CNFU_4G_PRODlg::OnBnClickedDataStop()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	if (!ifSocketTrue(&m_socket))
+	{
+		sprintf_s(m_showStr, "pls click CONNECT bt!");
+		showCurLineChar(m_listbox, m_showStr);
+		return;
+	}
+
+	memset((char*)&stZynqHead, 0, sizeof(stZynqHead));
+	stZynqHead.type = DT_STOP;
+	int index = 1;
+	stZynqHead.data = (char*)&index;
+	stZynqHead.size = 12;
+
+	int send_ret = 0;
+	int send_ret_add = 0;
+	int send_len = stZynqHead.size;
+
+	send_ret = sendData(m_socket, (char*)&stZynqHead, send_len);
+	if (send_ret < 0)
+	{
+		TRACE("sendData error\n");
+		return;
+	}
+
+	int recv_ret = recv(m_socket, (char*)&stZynqHead, 8, 0);
+	if (recv_ret < 0 || stZynqHead.type != DT_STOP_REACT)
+	{
+		TRACE("recv error\n");
+		return;
+	}
+
+	return;
+}
+/////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////
 int th_recv_data_new(void* th)
@@ -604,88 +714,21 @@ int th_write_data_new(void* th)
 	return 0;
 }
 
-/////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////
-
-void CNFU_4G_PRODlg::OnBnClickedStop()
+unsigned char mask[8] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
+int ExtraData(int bit_pos, int bitsize, uint8 *data_p)
 {
-	// TODO:  在此添加控件通知处理程序代码
-	sprintf_s(m_showStr, "退出程序");
-	showCurLineChar(m_listbox, m_showStr);
-
-	//退出线程，结束，或停止
-	m_flags_IF_exit = -1;
-
-	//停止接收数据 != 2
-	m_flags_recv_data = 0;
-
-	//退出
-	CDialog::OnCancel();
+	//只对小于32bit的数据进行截取
+	int jieguo = 0;
+	jieguo = ((data_p[(int)((bit_pos) / 8)] & mask[(int)((bit_pos) % 8)]) > 0 ? 1 : 0);
+	if (bitsize > 1)
+	{
+		int i;
+		for (i = 1; i<bitsize; i++)
+		{
+			jieguo *= 2;
+			jieguo += ((data_p[(int)((bit_pos + i) / 8)] & mask[(int)((bit_pos + i) % 8)])>0 ? 1 : 0);
+		}
+	}
+	return jieguo;
 }
 
-
-void CNFU_4G_PRODlg::OnBnClickedDisconnect()
-{
-	// TODO:  在此添加控件通知处理程序代码
-	if (m_socket)
-	{
-		closesocket(m_socket);
-		m_socket = NULL;
-		sprintf_s(m_showStr, "DisConnect success!");
-		showCurLineChar(m_listbox, m_showStr);
-	}
-	//停止接收数据 != 2
-	m_flags_recv_data = 0;
-
-	//退出线程，结束，或停止
-	m_flags_IF_exit = -1;
-
-	if (m_th_write.joinable())
-	{
-		m_th_write.join();
-	}
-
-	if (m_th_data.joinable())
-	{
-		m_th_data.join();
-	}
-
-}
-
-
-void CNFU_4G_PRODlg::OnBnClickedDataStop()
-{
-	// TODO:  在此添加控件通知处理程序代码
-	if (!ifSocketTrue(&m_socket))
-	{
-		sprintf_s(m_showStr, "pls click CONNECT bt!");
-		showCurLineChar(m_listbox, m_showStr);
-		return;
-	}
-	
-	memset((char*)&stZynqHead, 0, sizeof(stZynqHead));
-	stZynqHead.type = DT_STOP;
-	int index = 1;
-	stZynqHead.data = (char*)&index;
-	stZynqHead.size = 12;
-
-	int send_ret = 0;
-	int send_ret_add = 0;
-	int send_len = stZynqHead.size;
-		
-	send_ret = sendData(m_socket, (char*)&stZynqHead, send_len);
-	if (send_ret < 0)
-	{
-		TRACE("sendData error\n");
-		return;
-	} 
-
-	int recv_ret= recv(m_socket, (char*)&stZynqHead, 8, 0);
-	if (recv_ret < 0 || stZynqHead.type != DT_STOP_REACT)
-	{
-		TRACE("recv error\n");
-		return;
-	}
-
-	return;
-}

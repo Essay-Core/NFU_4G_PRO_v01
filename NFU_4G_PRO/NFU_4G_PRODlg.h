@@ -18,6 +18,8 @@
 #define NON_RECV_DATA 1
 #define CAN_RECV_DATA 2
 
+typedef unsigned char uint8;
+typedef unsigned int uint32;
 
 //使用tcp收发控制消息
 //使用UPD接收数据
@@ -125,3 +127,4 @@ public:
 int th_recv_data_new(void* th);
 int th_write_data_new(void* th);
 
+int ExtraData(int bit_pos, int bitsize,uint8 *data_p);

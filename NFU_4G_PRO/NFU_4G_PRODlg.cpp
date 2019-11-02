@@ -330,7 +330,7 @@ void CNFU_4G_PRODlg::OnBnClickedStart()
 	showCurLineChar(m_listbox, m_showStr);
 
 }
-
+///////////////##///////////
 void CNFU_4G_PRODlg::OnBnClickedStatus()
 {
 	if (!ifSocketTrue(&m_socket))
@@ -368,7 +368,7 @@ void CNFU_4G_PRODlg::OnBnClickedStatus()
 	int statusRet = 0;
 	for (int i = 0; i < 130; i++)
 	{
-		statusRet = ExtraData(0, 1, (uint8*)stHeader->data);
+		statusRet = ExtraData(i, 1, (uint8*)stHeader->data);
 		if (statusRet == 1)
 		{
 			sprintf_s(m_showStr, "channel:%d, status:%d", i, statusRet);
